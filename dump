@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import sqlite3
+import argparse
+from Ren import tools
+from Ren.tools import Script
+from pprint import pprint
+
+
+def help(wantReturn=True):
+	usage = """ %(prog)s HERMES
+	%(prog)s -h"""
+
+	if wantReturn:
+		return usage
+	else:
+		usage = usage.replace('(prog)', '')
+		print("usage: ", end='')
+		print(usage % (Script, Script))
+
+if len(sys.argv) == 1:
+	help(False)
+	exit(0)
+
+# Parse command line options
+parser = argparse.ArgumentParser(prog=Script,
+			description="Dump germes",
+			usage=help())
+parser.add_argument('hermes', metavar='HERMES', help="Specific hermes name")
+args = parser.parse_args()
+
+if args.hermes is None:
+	print("{0}: Error usage.".format(Script))
+	help(False)
+	exit(0)
+else:
+	hermes = args.hermes
+
+confDict = tools.load()
+db = "{0}/{1}".format(confDict['data'], hermes)
+
+if not os.path.isfile(db):
+	print("Error: no such hermes: '{0}'".format(hermes))
+	exit(1)
+
+conn = sqlite3.connect(db)
+cursor = conn.cursor()
+
+# Get all table
+sql = "SELECT name FROM sqlite_master WHERE type='table'"
+cursor.execute(sql)
+tables = cursor.fetchall()
+
+result = {hermes: {}}
+for table in tables:
+	table = table[0]
+	result[hermes][table] = {}
+	tableData = result[hermes][table]
+
+	sql = "SELECT * FROM `{0}`".format(table)
+	cursor.execute(sql)
+	res = cursor.fetchall()
+
+	for k,v in res:
+		tableData[k] = v
+
+tools.dict2yaml(result)
